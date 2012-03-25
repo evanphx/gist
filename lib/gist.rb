@@ -2,6 +2,8 @@ require 'open-uri'
 require 'net/https'
 require 'optparse'
 
+require 'orthrus/ssh'
+
 require 'base64'
 
 require 'gist/json'    unless defined?(JSON)
@@ -26,6 +28,7 @@ require 'gist/version' unless defined?(Gist::Version)
 module Gist
   extend self
 
+  AUTH_URL   = 'https://api.github.com/ssh-oauth'
   GIST_URL   = 'https://api.github.com/gists/%s'
   CREATE_URL = 'https://api.github.com/gists'
 
@@ -140,9 +143,9 @@ module Gist
     req = Net::HTTP::Post.new(url.path)
     req.body = JSON.generate(data(files, private_gist, description))
 
-    user, password = auth()
-    if user && password
-      req.basic_auth(user, password)
+    user, token = auth()
+    if user && token
+      req.basic_auth("orthrus-ssh:#{user}", token)
     end
 
     response = http.start{|h| h.request(req) }
@@ -210,25 +213,21 @@ private
     data
   end
 
+  def get_token(user)
+    hg = Orthrus::SSH::HTTPAgent.new AUTH_URL
+    hg.start user
+
+    return hg.access_token
+  end
+
   # Returns a basic auth string of the user's GitHub credentials if set.
   # http://github.com/guides/local-github-config
   #
-  # Returns an Array of Strings if auth is found: [user, password]
+  # Returns an Array of Strings if auth is found: [user, orthrus_token]
   # Returns nil if no auth is found.
   def auth
-    user  = config("github.user")
-    password = config("github.password")
-
-    token = config("github.token")
-    if password.to_s.empty? && !token.to_s.empty?
-      abort "Please set GITHUB_PASSWORD or github.password instead of using a token."
-    end
-
-    if user.to_s.empty? || password.to_s.empty?
-      nil
-    else
-      [ user, password ]
-    end
+    user = config("github.user")
+    [user, get_token(user)]
   end
 
   # Returns default values based on settings in your gitconfig. See
