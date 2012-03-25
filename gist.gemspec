@@ -19,6 +19,8 @@ Gem::Specification.new do |s|
   s.files            += Dir.glob("man/**/*")
   s.files            += Dir.glob("public/**/*")
 
+  s.add_dependency    "orthrus-ssh", "~> 0.5"
+
   s.executables       = %w( gist )
   s.description       = <<desc
   Creates Gists (pastes) on gist.github.com from standard input or
